@@ -1,6 +1,6 @@
 # 시계열 자료분석: 여러개의 시계열 자료에 대한 분석
 * (2021.03.03) ARIMA 오차 회귀모형
-  + 이론: https://be-favorite.tistory.com/74?category=928223
+  + Ariticle: https://be-favorite.tistory.com/74?category=928223
   + Tutorials with R: Still in progress 😓
 
 ## Introduction
