@@ -1,0 +1,167 @@
+---
+title: "ARIMA 오차 회귀모형"
+author: "방태모"
+date: "2021-03-03"
+output: 
+  html_document:
+    self_contained: FALSE
+    keep_md: FALSE
+    theme: null
+    highlight: null
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### `r emo::ji("exclamation")` prerequisite{#anchor1}
+[ARIMA 모형](https://be-favorite.tistory.com/63?category=928223)
+
+
+#### `r emo::ji("question")`More to read{#anchor2}
+
+Tutorials on regression with ARIMA errors in R
+
+
+이번에는 두 개 이상의 시계열에 대한 분석 방법 중 하나인 ARIMA 오차를 갖는 회귀모형에 대해 소개하려고 합니다. 말 그대로 일반적인 선형 회귀모형에서 오차항에 일반적으로 정규분포를 가정하듯이 오차항에 ARIMA 구조를 가정하는 것이죠. 즉, 회귀분석을 통해 반응변수에 대한 모델링을 수행할 때, 간혹 오차에 자기상관 구조가 존재하는 경우가 있는데 이때 ARIMA 오차를 갖는 회귀모형은 근본적인 해결책이 될 수 있습니다. 이를 통해 우리는 시계열 자료를 반응변수 $y$로 하여 동 시차의 여러 개의 독립변수 시계열로 모형화 할 수 있습니다. 다만, 오차항을 ARIMA 구조로 가정하는 것은 서로 연관된 것으로 간주한다는 말이므로, 회귀계수의 추정에 OLS[^1](또는 WLS[^2])방법을 사용할 수 없습니다. 따라서, 오차항에 대해 보다 일반적 구조를 허용하는 GLS[^3] 추정이 필요로 됩니다. 
+
+따라서, 이번 글에서는 ARIMA 오차를 갖는 회귀모형의 적합에 쓰이는 GLS에 대해 먼저 간단하게 소개한 뒤에 ARIMA 오차를 갖는 회귀모형에 대해 얘기할려고 해요, 바로 들어가보시죠.`r emo::ji("runner")`
+
+## 1 GLS 회귀
+GLS 회귀는 상관된 오차(correlated errors)를 갖는 회귀모형을 적합하는데 유용해요. 즉, 오차항이 ARMA 과정을 따르는 경우의 회귀를 수행할 때 또는 비정상성(non-stationary)의 평균을 갖는 시계열 자료에 대해 회귀를 수행할 때 유용하다고 할 수 있겠죠.
+
+OLS의 경우 오차의 자기상관을 허용하지 않으므로, 오차항의 분산을 $\sigma^2 {\boldsymbol{I}}$ 형태로 가정합니다. GLS는 이와는 달리 오차항에 대해 공분산 행렬 $\sum$을 가정합니다. 만약 $\sum$이 알려져 있다면, 회귀모형의 양변에 $\sum^{-1/2}$를 곱해주면 OLS를 적용할 수 있는 구조로 쉽게 변형됩니다. 다음과 같은 GLS 회귀를 고려한다고 해보겠습니다:
+
+
+\begin{equation}
+
+y_t = x_{1,t} + x_{2,t} + \epsilon_t, \ \epsilon_t \sim N(0, \sum)
+
+\end{equation}
+
+여기서 오차항 $\epsilon$의 분산은 $\sum$에 해당하며 이때 양변에 $\sum^{-1/2}$를 곱하게 되면 오차항은 $\sum^{-1/2} \epsilon$이 됩니다. 이에 따라 오차항의 분산은 $ Var( \sum^{-1/2} \epsilon) = \sum^{-1}Var(\epsilon) = {\boldsymbol{I}}$로 OLS 추정을 수행할 수 있게 되죠. 만약 $\sum$을 모르는 경우라면 다음과 같은 과정을 따라야 한다:
+
+(i) OLS로 회귀계수 추정
+(ii) 잔차를 이용해 $\sum$ 추정
+(iii) (i)과 (ii)를 반복하면 오차에 대한 정규분포 가정하에 수렴된 값은 MLE[^4]가 됨.
+
+실제 자료에서는 대부분 $\sum$이 알려져있지 않기 때문에, 후자에 설명한 방법이 필요로 될 것이다. R에서는 gls{nlme}로 GLS 회귀를 수행할 수 있고, 자세한 과정은 글 상단의 [More to read](#anchor2)을 참고해주세요.
+
+## 2 ARIMA 오차 회귀모형
+GLS 회귀에 대한 간단한 소개가 끝났으니, 이제 본 글의 주제라 할 수 있는 ARIMA 오차 회귀모형에 대해 소개하겠습니다. ARIMA 오차 회귀모형은 시계열 변수에 대해 회귀를 수행할 때 필요로 되는 GLS를 이용한 회귀계수 추정의 하나의 예라고 할 수 있습니다. 오차항을 AR[^5] 구조로 갖는 경우가 있으며, 또는 더 일반화된 ARIMA 구조로 갖는 경우가 있습니다. 차례대로 소개하겠습니다.
+
+### 2.1 AR 오차를 갖는 회귀모형{#anchor3}
+설명의 편의를 위해 단순선형회귀로 설명하겠습니다. 시계열 변수 $y_t$, $x_t$에 대해 자기회귀 오차를 갖는 단순선형회귀모형은 다음과 같이 표현됩니다.
+
+
+\begin{equation}
+
+y_t = \beta_0 + \beta_1 x_t + \epsilon_t, \\
+\epsilon_t = \phi_1 \epsilon_{t-1} + \phi_2 \epsilon_{t-2} + \cdots + w_t,\ w_t \sim i.i.d. N(0, \sigma^2)
+
+\end{equation}
+
+
+여기서 우리가 후향 연산자(backshift operator) $B$를 도입하여 $\Phi (B) = 1-\phi_1 B-\phi B^2 - \cdots$를 정의하면, AR 구조를 갖는 오차항을 좀 더 간단하게 표현할 수 있습니다:
+
+\begin{equation}
+
+\Phi(B) \epsilon_t = w_t.
+
+\end{equation}
+
+만약 역연산자 $\Phi^{-1}(B)$이 존재한다면, $\epsilon_t = \Phi^{-1}(B)w_t$로 표현할 수 있고, AR 오차를 갖는 회귀모형은 다음과 같이 간단하게 표기할 수 있습니다.
+
+
+\begin{equation}
+
+y_t = \beta_0 + \beta_1 x_t + \Phi^{-1}(B)w_t,
+
+\end{equation}
+
+
+여기서 $w_t$는 백색잡음(whtie noise) 계열입니다. 설명의 편의를 위해 단순선형회귀를 가정했으나, 해당 모형은 예측 시계열이 여러 개인 다중선형회귀로 자연스럽게 확장됩니다. 아울러, 시간 $t$에 따라 선형적 추세가 있는 경우 $t$ 자체를 하나의 독립 시계열로 모형에 포함시킬 수 있습니다(e.g. $y_t = \beta_0 +\beta_1t+\beta_2x_t + \epsilon_t$). R에서 시간 $t$ 변수를 예측변수로 포함시키고자 할 때는 `time()` 함수에 원하는 예측변수를 넣어주면 됩니다.
+
+### 2.2 ARIMA 오차를 갖는 회귀모형
+ARIMA 오차를 갖는 회귀모형 식은 오차항이 ARIMA 구조를 갖는다는 것을 제외하면 AR 오차를 갖는 회귀모형과 동일합니다. 편의상 차분이 필요없는 정상시계열(stationary timeseries)이라 가정하겠습니다.
+
+
+\begin{equation}
+
+y_t = \beta_0 + \beta_1 x_t + \epsilon_t, \\
+\epsilon_t = \phi_1 \epsilon_{t-1} + \phi_2 \epsilon_{t-2} + \cdots + w_t + \theta_1w_{t-1} + \theta_2w_{t-2} +\cdots,\ w_t \sim i.i.d. N(0, \sigma^2)
+
+\end{equation}
+
+다음의 함수들을 정의하면 AR 구조를 갖는 오차항과 마찬가지로 간단하게 나타낼 수 있습니다:
+
+\begin{equation}
+
+\Phi(B)\epsilon_t = \Theta(B)w_t,\\
+where \ \ \Phi (B) = 1-\phi_1 B-\phi B^2 - \cdots \\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \Theta(B) = 1+\theta_1B+\theta_2 B^2 +\cdots
+
+\end{equation}
+
+
+단, 여기서 해당 오차항은 차분이 필요없는 정상 시계열에 대한 ARIMA 오차를 갖는 구조입니다. 차분이 필요한 비정상 시계열 대해서는 마찬가지로 후향 연산자 $B$를 이용하면 쉽게 일반화 시킬 수 있습니다:
+
+
+\begin{equation}
+
+\Phi(B)(1-B)^d\epsilon_t = \Theta(B)w_t,\\
+where \ \ \Phi (B) = 1-\phi_1 B-\phi B^2 - \cdots \\
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \Theta(B) = 1+\theta_1B+\theta_2 B^2 +\cdots
+
+\end{equation}
+
+그리고, [2.1](#anchor3)에서 했던 것 처럼 $\Phi(B)$와 $(1-B)^d$의 역연산자를 정의하면 ARIMA 오차를 갖는 회귀모형을 식을 좀 더 간단히 표현해볼 수 있겠죠. 지금까지 과정을 잘 따라오셨다면 계절성을 모델링할 수 있는 SARIMA 오차를 갖는 회귀모형에 대한 식도 머릿 속에 떠올리실 수 있을겁니다. 혹시, ARIMA 모형에 대한 정리가 안되어있다면 [prerequsite](#anchor1)을 통해 한번 정리하시면 쉽게 이해가 가능하실 거에요. ARIMA 오차 회귀모형은 단지 일반적인 회귀모형 베이스에 오차항에 대한 가정을 ARIMA 모형 구조로 한 것에 불과하기 때문이니까요.`r emo::ji("blush")`
+
+### 2.3 ARIMA 오차 회귀모형의 추정
+
+#### 2.3.1 Cochrane-Orcutt 절차
+Cochrane-Orcutt 절차는 AR 오차를 갖는 회귀모형에 대한 적합을 수행할 때 사용할 수 있는 반복적인 추정 알고리즘입니다. [2.1](#anchor3)에서 정리한 AR 오차 회귀모형 식의 양변에 $\Phi(B)$를 곱하여 정리하면 다음과 같이 식을 변형할 수 있어요.
+
+
+\begin{equation}
+
+\Phi(B)y_t = \Phi(B)\beta_0 + \beta_1\Phi(B) x_t + w_t \\
+\ \ \ \ \ \Leftrightarrow y_t^* = \beta_0^* +\beta_1x_t^*+w_t
+
+\end{equation}
+
+여기서 $\beta_0$는 시간 $t$와 무관하기 때문에 후향연산자에 영향을 받지 않습니다. 변형된 식의 오차항은 백색잡음 계열이므로 이제 통상적인 OLS 추정으로 모형을 적합할 수 있게 됩니다. 즉, 변형한 모형의 적합 결과를 이용해 기존 모형식의 회귀계수 추정치를 다음의 반복적인 방법으로 조정해나갑니다.
+
+(i) 변형된 식으로부터 추정된 $\hat{\beta}_1$은 기존의 모형식의 기울기 모수에 대한 수정된 추정치가 됨(표준오차 역시 수정)
+(ii) 변형된 식의 절편항의 추정치 조정은 $\beta_0^* = (1-\phi_1-\cdots-\phi_p)\beta_0$ 관계로부터 다음과 같이 수행됨(마찬가지로 표준오차 역시 수정):
+
+
+\begin{equation}
+
+\hat{\beta}_0 = \frac{\hat{\beta}_0^*}{(1-\phi_1-\cdots-\phi_p)\beta_0} \\
+s.e.(\hat{\beta}_0) = \frac{s.e.(\hat{\beta}_0^*)}{(1-\phi_1-\cdots-\phi_p)\beta_0}.
+
+\end{equation}
+
+
+위 과정을 추정치가 수렴할 때까지 반복하여 회귀계수와 표준오차에 대한 추정치를 얻게 됩니다. 다만, Cochrane-Orcutt 절차는 AR 오차를 갖는 회귀모형에만 적용될 뿐더러, 잔차제곱합이 항상 최소로 되지는 않는 잠재적 문제점을 갖습니다. 그래서, 일반적으로는 다음으로 소개할 일반화된 방법을 사용합니다.
+
+#### 2.3.2 ARIMA 오차 회귀모형 추정의 일반화된 방법
+일반화된 방법 역시 OLS 추정에 의한 회귀계수와 표준오차를 조정해나가는 과정이 Cochrane-Orcutt 절차와 유사합니다:
+
+(i) 주어진 ARIMA 오차 회귀모형(e.g. $y_t = \beta_0 + \beta_1t+\beta_2x_t+\epsilon_t$)에 대해 OLS 추정 실시
+(ii) 잔차에 대한 ACF, PACF 검토를 통한 ARIMA 구조 파악
+(iii) 잔차가 ARIMA 구조를 가지면 잔차에 대해 ARIMA 추정 수행하고, 동시에 회귀모형을 MLE를 이용해 추정
+(iv) (iii)에서 적합된 회귀모형에 대해 잔차 구조 파악
+
+만약 모형의 잔차 구조가 백색잡음 계열이 만족된다면(즉, (iii) 단계에서 잔차에 대한 ARIMA 추정이 잘 이루어졌다면) 모형 적합을 끝내고, 그렇지 않으면 모형의 남은 잔차가 백색잡음 계열이 될 때까지 오차에 대해 ARIMA 적합을 통한 조정을 반복합니다. R에서는 `glm{nlme}`와 `arima()` 또는 `sarima{astsa}` 함수를 이용해 ARIMA(또는 상관된) 오차를 갖는 회귀모형을 적합할 수 있습니다. 반면, Cochrane-Orcutt 절자를 제공하는 `cochrane.orcutt{orcutt}` 함수는 AR(1) 오차의 경우에 한해 Cochrane-Orcutt 절차를 수행합니다. R을 이용한 자세한 튜토리얼 과정은 [More to read](#anchor2)을 참고해주세요.
+
+참고 문헌
+
+나종화, R 응용 시계열분석, 자유아카데미(2020)
+
+[^1]: Ordinary least sqaures
+[^2]: Weighted least squares, 가중 최소제곱
+[^3]: Generalized least squares, 일반화 최소제곱
+[^4]: Maximum likelihood estimator, 최대가능도추정량
+[^5]: Auto regressive, 자기회귀
