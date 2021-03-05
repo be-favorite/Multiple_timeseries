@@ -1,9 +1,11 @@
 # 여러개의 시계열 자료에 대한 분석
+* (2021.03.05) 허구적 회귀(spurious regression)
+  + Article: https://be-favorite.tistory.com/76
 * (2021.03.04) ARIMA 오차 회귀모형(regression with ARIMA errors)
   + Article: https://be-favorite.tistory.com/74?category=928223
   + Tutorials with R: Still in progress😓
-* (2021.03.??) 분포시차모형(Distributed lag model, DLM)
-  + Article: Still in progress😓
+* (2021.03.05) 분포시차모형(Distributed lag model, DLM)
+  + Article: https://be-favorite.tistory.com/75
   + Tutorials with R: Still in progress😓
 
 
