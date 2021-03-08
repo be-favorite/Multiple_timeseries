@@ -1,14 +1,14 @@
 # 여러개의 시계열 자료에 대한 분석
 * 허구적 회귀(spurious regression)
-  + Article: https://be-favorite.tistory.com/76
+  + [Article](https://be-favorite.tistory.com/76)
 * ARIMA 오차 회귀모형(regression with ARIMA errors)
-  + Article: https://be-favorite.tistory.com/74?category=928223
+  + [Article](https://be-favorite.tistory.com/74?category=928223)
   + Tutorials with R: Still in progress😓
 * 분포시차모형(Distributed lag model, DLM)
-  + Article: https://be-favorite.tistory.com/75
-  + Tutorials with R: https://be-favorite.github.io/Multiple_timeseries/CCF+analysis+and+DLM/Tutorials_DLM.html
+  + [Article](https://be-favorite.tistory.com/75)
+  + [Tutorials with R](https://be-favorite.github.io/Multiple_timeseries/CCF%20analysis%20and%20DLM/Tutorials_DLM.html)
 * lag()를 이용한 모형 적합 시 주의해야 할 사항
-  + Tutorials with R: https://be-favorite.github.io/Multiple_timeseries/Use+of+lag()+function/Tutorials_lag--.html
+  + [Tutorials with R](https://be-favorite.github.io/Multiple_timeseries/Use%20of%20lag()%20function/Tutorials_lag--.html)
 
 ## Introduction
 여러개의 시계열을 가지고 자료분석을 수행하는 것에 관한 것들을 정리하려고 합니다. 해당 레포에는 R을 이용한 간단한 튜토리얼을 수행한 Rmd 파일과 html 파일 등을 업로드할 예정이에요. 상단의 링크를 참고해주세요.:blush:
