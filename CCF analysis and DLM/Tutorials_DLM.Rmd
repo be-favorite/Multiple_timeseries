@@ -211,7 +211,7 @@ mod_pacf <- ggPacf(residuals(dlm)) +
 grid.arrange(mod_acf, mod_pacf, ncol = 2)
 ```
 
-몇 개의 이상점이 발견되지만, 잔차에 대한 ACF와 PACF가 특이한 패턴을 보이지 않음으로 모형이 잘 적합되고 있음을 알 수 있습니다. 아울러, 해당 예제에서 `lag()` 함수를 활용하여 선행시차의 예측변수를 생성하였는데, `lag()` 함수를 통한 모형적합에서 주의해야할 사항 여기를 참고해주시기 바랍니다.
+몇 개의 이상점이 발견되지만, 잔차에 대한 ACF와 PACF가 특이한 패턴을 보이지 않음으로 모형이 잘 적합되고 있음을 알 수 있습니다. 아울러, 해당 예제에서 `lag()` 함수를 활용하여 선행시차의 예측변수를 생성하였는데, `lag()` 함수를 통한 모형적합에서 주의해야할 사항 [여기](https://be-favorite.github.io/Multiple_timeseries/Use%20of%20lag()%20function/Tutorials_lag--.html)를 참고해주시기 바랍니다.
 
 ## **4 References**
 ***
