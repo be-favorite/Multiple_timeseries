@@ -1,0 +1,219 @@
+---
+title: "<center> **<font size = 5>Tutorials on distributed lag models with R **</font> </center>"
+author: "방태모"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::robobook
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+<!-- <style> -->
+<!-- .math { -->
+<!--   font-size: small; -->
+<!-- } -->
+<!-- </style> -->
+
+<!-- <br> -->
+
+## **0 Before start**
+***
+해당 튜토리얼이 제공되는 곳: https://github.com/be-favorite/Multiple_timeseries
+
+이론 정리: https://be-favorite.tistory.com/75
+
+<br>
+
+## **1 Preparing**
+***
+먼저 분석에 필요한 여러가지 패키지를 불러오겠습니다. 패키지가 설치되어 있지 않은 경우`install.packages("원하는 패키지 명")`을 통해 CRAN(The Comprehensive R Archive Network)에서 내려받으시길 바랍니다.
+```{r}
+library(tidyverse)
+```
+
+```{r, message = FALSE}
+library(lubridate)
+library(TSA)
+library(forecast) # for visulalizing ccf analysis
+library(gridExtra) # for grid.arrange
+ggplot2::theme_set(theme_light()) # change the theme of ggplot2
+loaded_package <- c("lubridate", "TSA", "forecast", "gridExtra")
+.version <- map(loaded_package, packageVersion)
+names(.version) <- loaded_package
+.version
+```
+
+
+## **2 CCF 분석**
+***
+### 2.1 CCF 분석{#anchor1}
+분포시차모형(distributed lag models, 이하 DLM)의 적합 이전에 꼭 선행되어야 할 교차상관분석(cross-correlation analysis, 이하 CCF 분석)에 대한 튜토리얼을 먼저 진행하겠습니다. 본 튜토리얼에서는 {datasets}에서 제공하는 1974 ~ 1979년 영국에서 발생한 여성과 남성의 폐질환으로 인한 월별 사망자 수에 관한 자료인 `fdeaths`(여성), `mdeaths`(남성)를 이용할 것 입니다.
+
+```{r, warning = FALSE, out.width = "80%", cache = TRUE}
+tibble(fdeaths, mdeaths,
+       date = seq(ymd("1974-01-01"), ymd("1979-12-01"), by = "months")) %>% 
+  tidyr::pivot_longer(!date, names_to = "sex", values_to = "deaths") %>% 
+  ggplot(aes(x = date, y = deaths, col = sex)) +
+  geom_line() +
+  geom_point() +
+  scale_color_discrete(labels = c("female", "male")) +
+  scale_x_date(date_breaks = "3 months",
+               date_labels = "%Y-%m") +
+  labs(y = "lungDeaths") +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1),
+    legend.position = "top") 
+```
+
+좀 더 그림을 fancy하게 그리기 위해 위 과정을 거쳤으나, `ggplot()`이 어려운 분들은 `autoplot(){forecast}`을 이용하면 그릴 수 있습니다(see details [here](https://pkg.robjhyndman.com/forecast/reference/index.html)).
+```{r, warning = FALSE, out.width = "80%", cache = TRUE}
+lung_deaths <- cbind(fdeaths, mdeaths)
+autoplot(lung_deaths) +
+  scale_color_discrete(name = "sex", labels = c("female", "male")) +
+    labs(x = "date", y = "lung deaths") +
+  theme(legend.position = "top")
+```
+
+
+ccf 분석 및 시각화에는 {forecast} 패키지의 `ggCcf()`를 이용하려고 합니다. `ccf()`로도 시각화가 가능하나, `ggplot()` 형식으로 통일하기 위함입니다.
+
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+ggCcf(mdeaths, fdeaths, lag.max = 20, color = "orange") +
+  scale_y_continuous(breaks = seq(-1, 1, 0.2)) + 
+  labs(title = "")
+```
+
+위 그림은 시차 $h = \pm20$까지의 교차상관을 보여주고 있는데, 동시차의 교차상관 값은 그려주지 않는 이슈가 있었습니다. 제 생각으로는 CCF 분석은 분포시차모형(distributed lag models, 이하 DLM)의 이전에 선행되는 분석으로 예측변수의 이전 시차와의 관계에 관심이 있지, 동 시차에 대한 관심은 없기 때문에 이에 관한 교차상관은 시각화에 포함하지 않은 것으로 추정해봅니다.
+
+그래도, 저는 동시차에 관한 교차상관 값도 그래프에 포함하고 싶었습니다. 다음과 같은 수고를 하면 그릴 수 있어요:
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+alpha <- 0.05
+n <- length(mdeaths)
+sigma <- 1
+significance_acf <- qnorm(1-alpha/2)*(1/sqrt(n))
+
+tibble(
+  CCF = ggCcf(mdeaths, fdeaths, lag.max = 20, plot = FALSE)$acf %>% as.numeric,
+  Lag = ggCcf(mdeaths, fdeaths, lag.max = 20, plot = FALSE)$lag %>% as.numeric
+) %>% 
+  ggplot() +
+  geom_col(aes(x = Lag, y = CCF), 
+           fill = "orange", width = 1/3) +
+  geom_hline(aes(yintercept = significance_acf), linetype = "dashed", col = "blue") +
+  geom_hline(aes(yintercept = -significance_acf), linetype = "dashed", col = "blue") +
+  scale_y_continuous(limits = c(-1, 1))
+```
+
+여기서 그림의 파란색 점선은 acf의 95% 신뢰구간에 해당합니다. 두 시계열 $x_t$(mdeaths)와 $y_t$(fdeaths)는 동 시차(lag = 0)에서 상관이 가장 높으므로, 두 변수는 동행 변수로 볼 수 있습니다. 이러한 경우에는 자연스럽게 DLM이 아닌 ARIMA 오차 회귀모형(regression with ARIMA errors)을 고려하면 되겠죠?
+
+다음으로는 두 시계열 간에 계절성으로 인한 [허구적 상관](https://be-favorite.tistory.com/76)이 존재하는지 확인하기 위해 계절 차분을 실시한 후, CCF 분석을 수행해보겠습니다. 즉, 여기서 계절차분은 일종의 백색화(또는 사전 백색화) 작업을 수행하는 과정이라고 할 수 있습니다.
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+d_fdeaths <- diff(fdeaths, 12)
+d_mdeaths <- diff(mdeaths, 12)
+lung_deaths_d <- cbind(d_fdeaths, d_mdeaths)
+autoplot(lung_deaths_d) +
+  scale_color_discrete(name = "sex", labels = c("female", "male")) +
+  labs(x = "date", y = "lung deaths", title = "After difference") +
+  theme(legend.position = "bottom")
+```
+
+다음으로 CCF 분석을 수행해 봅니다:
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+tibble(
+  CCF = ggCcf(d_mdeaths, d_fdeaths, lag.max = 20, plot = FALSE)$acf %>% as.numeric,
+  Lag = ggCcf(d_mdeaths, d_fdeaths, lag.max = 20, plot = FALSE)$lag %>% as.numeric
+  ) %>% 
+  ggplot() +
+  geom_bar(aes(x = Lag, y = CCF), 
+           fill = "orange", width = 1/3, stat = "identity") +
+  geom_hline(aes(yintercept = significance_acf), linetype = "dashed", col = "blue") +
+  geom_hline(aes(yintercept = -significance_acf), linetype = "dashed", col = "blue") +
+  scale_y_continuous(limits = c(-1, 1))
+```
+
+차분을 통해 백색화한 두 시계열에 대해 CCF 분석을 수행한 결과, CCF가 시차 0, 12, -12에서 유의성이 뚜렷함을 알 수 있다. 즉, 여성의 폐암 사망자 수와 남성의 폐암 사망자 수 간에 동시차의 강한 양의 관계를 알 수 있다(i.e. 여성의 폐암 사망자 수가 크면 남성의 폐암 사망자 수도 큼). 아울러, 동시차의 양의 관계가 12개월 전(또는 후)에는 음의 관계로 영향을 주고받음을 알 수 있다.
+
+### 2.2 예제
+CCF 분석으로 두 시계열 간에 허구적 상관의 존재 여부를 판단하고, ARIMA 오차 회귀모형을 적합하는 일련의 과정을 보여드리려고 합니다. 분석에는 `bluebird{TSA}` 자료를 사용하였고, 해당 자료는 뉴질랜드 Bluebird 사 감자칩의 price와 log(sales)에 대한 주별(weekly) 시계열 자료에 해당합니다.
+```{r}
+data(bluebird)
+head(bluebird)
+```
+
+해당 자료는 감자칩 판매량은 우편향으로 인한 정상성 위배로 로그 변환이 실시된 값으로(`log.price`) 주어집니다.
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+autoplot(bluebird, facets = TRUE)
+```
+
+두 계열 간에 강한 음의 연관이 있는 것으로 보입니다. 허구적 회귀 존재 여부를 생각하여 백색화 전 후의 두 시계열에 대한 CCF 분석을 수행합니다. 예제 진행의 편의상 `ccf()`를 이용하겠습니다.
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+par(mfrow = c(1, 2))
+ccf(y = bluebird[, 1], x = bluebird[, 2], ylab = "CCF", main = "")
+ccf(y = bluebird[, 1] %>% diff, x = bluebird[, 2] %>% diff, ylab = "CCF",
+    main = "After difference")
+par(mfrow = c(1, 1))
+```
+
+1차 차분된 두 계열은 시차 0에서만 유의하므로, 동 시차의 `price`와 `sales` 간에 강한 음의 관계가 있음을 알 수 있습니다. 즉, 높은 가격은 낮은 판매와 연관이 있다고 할 수 있겠죠. 즉, 동시차 주변의 다른 시차에서 존재하던 상관관계는 허구적 상관이였던 것입니다.`r emo::ji("blush")`
+
+동행 시차에 강한 상관이 존재하므로, ARIMA 오차 회귀를 적합할 것입니다. 해당 자료에 대해 OLS 회귀를 수행하고, 그 잔차에 대해 ARIMA 모형을 적합하려고 합니다.
+```{r}
+chip <- tibble(
+  log_sales = bluebird[, 1],
+  price = bluebird[, 2]
+)
+mod <- lm(log_sales ~ price, data = chip)
+summary(mod)
+```
+
+잔차의 ACF와 PACF로 ARIMA 구조에 대해 파악해봅시다.
+
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+mod_acf <- ggAcf(residuals(mod)) + 
+  labs(title = "")
+mod_pacf <- ggPacf(residuals(mod)) + 
+  labs(title = "")
+grid.arrange(mod_acf, mod_pacf, ncol = 2)
+```
+
+ACF는 처음 4개 시차에서 유의하며, PACF는 시차 1, 2, 4, 14에서 유의합니다. `auto.arima{forecast}`로 AIC 기반으로 최적의 모형을 선택할 수는 방법도 있지만, 이번에는 조금 다른 방법으로 차수를 결정하는 방법을 소개해보겠습니다. 이는 표본 확장된 ACF(sample extened ACF, 이하 EACF) 행렬을 이용하는 방법인데, EACF를 통한 모형의 식별 방법은 `eacf{TSA}`를 이용합니다:
+```{r}
+eacf(residuals(mod))
+```
+
+식별 방법은 간단합니다. 해당 결과에서 꼭짓점(1, 4)에서 0으로 이루어진 삼각행렬이 만들어지므로 ARMA(1, 4) 모형으로 식별합니다. 마지막으로 ARMA(1, 4) 오차를 가지는 회귀모형을 적합한 결과는 다음과 같습니다. 
+```{r}
+arima(chip %>% select(log_sales), order = c(1, 0, 4), 
+      xreg = chip %>% select(price))
+```
+
+Ljung-Box 검정 등의 잔차분석은 생략합니다. ARIMA 오차 회귀모형에 관한 잔차분석의 과정은 [여기서]((https://github.com/be-favorite/Multiple_timeseries)) ARIMA 오차 회귀모형의 튜토리얼을 참고해주세요.
+
+## **3 DLM**
+***
+DLM은 선행시차의 예측변수를 포함하는 회귀모형을 말합니다(see details [here](https://be-favorite.tistory.com/75)). [CCF 분석](#anchor1)에서 다루었던 월별 남성과 여성의 폐질환 사망자 수 자료를 이용해 DLM 적합을 수행하겠습니다. 허구적 상관을 제거한 뒤에 수행한 CCF 분석 결과에서 시차 0, 12, -12에서 유의성이 뚜렸했으나, DLM 예제 진행을 위해 편의상 1, 2, 6 선행시차의 예측변수(`mdeaths`)를 이용하겠습니다.
+
+```{r}
+lung_deaths_dlm <- cbind(fdeaths, 
+                         mdeaths_lag1 = stats::lag(mdeaths, -1),
+                         mdeaths_lag2 = stats::lag(mdeaths, -2), 
+                         mdeaths_lag6 = stats::lag(mdeaths, -6))
+dlm <- lm(fdeaths ~ ., data = lung_deaths_dlm)
+summary(dlm)
+```
+
+당연히 동행시차의 예측변수를 통해 수행한 회귀모형보다 성능은 떨어지겠지만, 예제를 위해 진행했음을 알아주시기 바랍니다.
+```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+mod_acf <- ggAcf(residuals(dlm)) + 
+  labs(title = "")
+mod_pacf <- ggPacf(residuals(dlm)) + 
+  labs(title = "")
+grid.arrange(mod_acf, mod_pacf, ncol = 2)
+```
+
+몇 개의 이상점이 발견되지만, 잔차에 대한 ACF와 PACF가 특이한 패턴을 보이지 않음으로 모형이 잘 적합되고 있음을 알 수 있습니다. 아울러, 해당 예제에서 `lag()` 함수를 활용하여 선행시차의 예측변수를 생성하였는데, `lag()` 함수를 통한 모형적합에서 주의해야할 사항 여기를 참고해주시기 바랍니다.
+
+## **4 References**
+***
+* 나종화, R 응용 시계열분석, 자유아카데미(2020)
+* [Github for {forecast}](https://pkg.robjhyndman.com/forecast/reference/index.html)

@@ -1,0 +1,82 @@
+---
+title: "<center> **<font size = 5>Use of lag() function **</font> </center>"
+author: "방태모"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::robobook
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+<!-- <style> -->
+<!-- .math { -->
+<!--   font-size: small; -->
+<!-- } -->
+<!-- </style> -->
+
+<!-- <br> -->
+
+## **0 Before start**
+***
+해당 튜토리얼이 제공되는 곳: https://github.com/be-favorite/Multiple_timeseries
+
+R은 다양한 시계열 객체를 제공하며, 각 객체에 따라 lag() 함수를 이용한 모형 적합의 결과가 조금씩 달라짐을 유의해야 합니다. 이번 튜토리얼을 통해 R의 시계열 객체들인 `ts`와 `xts`(extensible time-series)(또는 `zoo` 객체)에 대해 `lag()`의 모형 적합 결과가 어떻게 다른지 알아두시기 바랍니다.
+
+## **1 lag() in the ts object**
+먼저 난수을 통해 `ts` 객체를 생성합니다.
+```{r}
+set.seed(123)
+y <- ts(rnorm(10))
+x <- ts(rnorm(10))
+x
+```
+
+다음으로 `x`에 대해 `lag()`를 수행합니다.
+```{r}
+lag(x) # same as lag(x, 1L)
+```
+
+`ts`객체인 `x`가 `lag()`를 통해 1 시차 앞으로 당겨졌습니다. 바로 모형 적합을 수행하여 비교해보겠습니다.
+
+```{r}
+summary(lm(y ~ x))
+```
+```{r}
+summary(lm(y ~ lag(x)))
+```
+
+결과가 정확하게 똑같습니다. 즉, `ts` 객체로 `lm()`을 통해 회귀를 수행하면 해당 객체의 start와 end를 캐치하지 못합니다. 그래서, `ts` 객체를 이용한 분배시차모형, 동적회귀모형 등의 적합은 `dynlm{dynlm}`을 통해 수행해야 합니다. 해당 함수는 `L()`을 이용하여 예측변수로 사용 될 전 시차를 지정해주면 됩니다. 다만, `L()`은 시차를 앞이 아닌 뒤로 당깁니다. 따라서, `L(x, -1L)`은 `lag(x, 1L)`과 같습니다. `x`를 앞으로 한 칸 당겨 분포시차모형을 적용해보겠습니다.
+```{r}
+library(dynlm)
+dynlm(y ~ L(x, -1L)) # same as y ~ L(x, 1L) or y ~ lag(x, 1)
+```
+
+## **2 lag() in the xts object**
+***
+`xts` 객체에서는 lag() 함수가 어떻게 동작하는지 알아보고 튜토리얼을 마무리하겠습니다.
+```{r}
+library(xts)
+y_xts <- xts(y, as.Date(1:10))
+x_xts <- xts(x, as.Date(1:10))
+class(x_xts)
+```
+
+`x_xts` 객체는 `xts`, `zoo` 객체에 해당합니다. 해당 객체에 대해 `lag()`를 수행하면 `ts` 객체와는 달리 한 시차 뒤로 이동하게됩니다. 즉, $x_{t+1}$에 해당합니다:
+```{r}
+lag(x_xts)
+```
+
+그리고, `xts` 객체의 경우 `lm()`으로 회귀모형을 적합해도 해당 객체의 start와 end를 캐치할 수 있습니다. 즉, `lm(y_xts ~ lag(x_xts))`의 결과는 `dynlm(y ~ L(x, 1L))`과 동일할 것입니다.
+```{r}
+lm(y_xts ~ lag(x_xts))
+```
+
+```{r}
+dynlm(y ~ L(x, 1L))
+```
+
+해당 튜토리얼을 참고하여 `lag()`를 이용한 모형 적합 진행 시, 주의를 기울여 진행하시기 바랍니다.`r emo::ji("blush")`
+
+## **3 References**
+***
+* 나종화, R 응용 시계열분석, 자유아카데미(2020)
