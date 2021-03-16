@@ -9,7 +9,8 @@
   + Tutorials with R: [here](https://be-favorite.github.io/Multiple_timeseries/CCF%20analysis%20and%20DLM/Tutorials_DLM.html)
 * lag()를 이용한 모형 적합 시 주의해야 할 사항
   + Tutorials with R: [here](https://be-favorite.github.io/Multiple_timeseries/Use%20of%20lag()%20function/Tutorials_lag--.html)
-* Time series analysis for count data (simply, GLM with ARIMA errors)
+* tscount: An R package for analysis of count time series
+  + Simply, It's GLMs with ARIMA errors
   + Tutorials with R: Still in progress😓
 
 ## Introduction
