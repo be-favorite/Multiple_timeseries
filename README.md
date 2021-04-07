@@ -4,9 +4,12 @@
 * ARIMA 오차 회귀모형(regression with ARIMA errors)
   + Article: https://be-favorite.tistory.com/74?category=928223
   + Tutorials with R: Still in progress😓
-* 분포시차모형(Distributed lag model, DLM)
+* Distributed lag models(DLMs)
   + Article: https://be-favorite.tistory.com/75
   + Tutorials with R: [here](https://be-favorite.github.io/Multiple_timeseries/CCF%20analysis%20and%20DLM/Tutorials_DLM.html)
+* Distributed lag non-linear models(DLNMs)
+  + Article: https://be-favorite.tistory.com/80
+  + Tutorials with R: Still in progress😓
 * lag()를 이용한 모형 적합 시 주의해야 할 사항
   + Tutorials with R: [here](https://be-favorite.github.io/Multiple_timeseries/Use%20of%20lag()%20function/Tutorials_lag--.html)
 
