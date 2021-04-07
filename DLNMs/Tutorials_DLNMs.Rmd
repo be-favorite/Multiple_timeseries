@@ -8,6 +8,11 @@ editor_options:
   markdown: 
     wrap: 72
 ---
+<style>
+.math {
+  font-size: small;
+}
+</style>
 
 <br>
 

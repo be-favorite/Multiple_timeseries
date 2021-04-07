@@ -9,17 +9,25 @@ output:
     theme: null
     highlight: null
 ---
+<style>
+.math {
+  font-size: small;
+}
+</style>
+
+<br>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #### `r emo::ji("exclamation")` prerequisite{#anchor1}
+***
 [ARIMA 모형](https://be-favorite.tistory.com/63?category=928223)
 
 
 #### `r emo::ji("question")`More to read{#anchor2}
-
+***
 Tutorials on regression with ARIMA errors in R
 
 
@@ -28,6 +36,7 @@ Tutorials on regression with ARIMA errors in R
 따라서, 이번 글에서는 ARIMA 오차를 갖는 회귀모형의 적합에 쓰이는 GLS에 대해 먼저 간단하게 소개한 뒤에 ARIMA 오차를 갖는 회귀모형에 대해 얘기할려고 해요, 바로 들어가보시죠.`r emo::ji("runner")`
 
 ## 1 GLS 회귀
+***
 GLS 회귀는 상관된 오차(correlated errors)를 갖는 회귀모형을 적합하는데 유용해요. 즉, 오차항이 ARMA 과정을 따르는 경우의 회귀를 수행할 때 또는 비정상성(non-stationary)의 평균을 갖는 시계열 자료에 대해 회귀를 수행할 때 유용하다고 할 수 있겠죠.
 
 OLS의 경우 오차의 자기상관을 허용하지 않으므로, 오차항의 분산을 $\sigma^2 {\boldsymbol{I}}$ 형태로 가정합니다. GLS는 이와는 달리 오차항에 대해 공분산 행렬 $\sum$을 가정합니다. 만약 $\sum$이 알려져 있다면, 회귀모형의 양변에 $\sum^{-1/2}$를 곱해주면 OLS를 적용할 수 있는 구조로 쉽게 변형됩니다. 다음과 같은 GLS 회귀를 고려한다고 해보겠습니다:
@@ -48,6 +57,7 @@ y_t = x_{1,t} + x_{2,t} + \epsilon_t, \ \epsilon_t \sim N(0, \sum)
 실제 자료에서는 대부분 $\sum$이 알려져있지 않기 때문에, 후자에 설명한 방법이 필요로 될 것이다. R에서는 gls{nlme}로 GLS 회귀를 수행할 수 있고, 자세한 과정은 글 상단의 [More to read](#anchor2)을 참고해주세요.
 
 ## 2 ARIMA 오차 회귀모형
+***
 GLS 회귀에 대한 간단한 소개가 끝났으니, 이제 본 글의 주제라 할 수 있는 ARIMA 오차 회귀모형에 대해 소개하겠습니다. ARIMA 오차 회귀모형은 시계열 변수에 대해 회귀를 수행할 때 필요로 되는 GLS를 이용한 회귀계수 추정의 하나의 예라고 할 수 있습니다. 오차항을 AR[^5] 구조로 갖는 경우가 있으며, 또는 더 일반화된 ARIMA 구조로 갖는 경우가 있습니다. 차례대로 소개하겠습니다.
 
 ### 2.1 AR 오차를 갖는 회귀모형{#anchor3}
@@ -83,6 +93,7 @@ y_t = \beta_0 + \beta_1 x_t + \Phi^{-1}(B)w_t,
 여기서 $w_t$는 백색잡음(whtie noise) 계열입니다. 설명의 편의를 위해 단순선형회귀를 가정했으나, 해당 모형은 예측 시계열이 여러 개인 다중선형회귀로 자연스럽게 확장됩니다. 아울러, 시간 $t$에 따라 선형적 추세가 있는 경우 $t$ 자체를 하나의 독립 시계열로 모형에 포함시킬 수 있습니다(e.g. $y_t = \beta_0 +\beta_1t+\beta_2x_t + \epsilon_t$). R에서 시간 $t$ 변수를 예측변수로 포함시키고자 할 때는 `time()` 함수에 원하는 예측변수를 넣어주면 됩니다.
 
 ### 2.2 ARIMA 오차를 갖는 회귀모형
+***
 ARIMA 오차를 갖는 회귀모형 식은 오차항이 ARIMA 구조를 갖는다는 것을 제외하면 AR 오차를 갖는 회귀모형과 동일합니다. 편의상 차분이 필요없는 정상시계열(stationary timeseries)이라 가정하겠습니다.
 
 
@@ -118,7 +129,6 @@ where \ \ \Phi (B) = 1-\phi_1 B-\phi B^2 - \cdots \\
 그리고, [2.1](#anchor3)에서 했던 것 처럼 $\Phi(B)$와 $(1-B)^d$의 역연산자를 정의하면 ARIMA 오차를 갖는 회귀모형을 식을 좀 더 간단히 표현해볼 수 있겠죠. 지금까지 과정을 잘 따라오셨다면 계절성을 모델링할 수 있는 SARIMA 오차를 갖는 회귀모형에 대한 식도 머릿 속에 떠올리실 수 있을겁니다. 혹시, ARIMA 모형에 대한 정리가 안되어있다면 [prerequsite](#anchor1)을 통해 한번 정리하시면 쉽게 이해가 가능하실 거에요. ARIMA 오차 회귀모형은 단지 일반적인 회귀모형 베이스에 오차항에 대한 가정을 ARIMA 모형 구조로 한 것에 불과하기 때문이니까요.`r emo::ji("blush")`
 
 ### 2.3 ARIMA 오차 회귀모형의 추정
-
 #### 2.3.1 Cochrane-Orcutt 절차
 Cochrane-Orcutt 절차는 AR 오차를 갖는 회귀모형에 대한 적합을 수행할 때 사용할 수 있는 반복적인 추정 알고리즘입니다. [2.1](#anchor3)에서 정리한 AR 오차 회귀모형 식의 양변에 $\Phi(B)$를 곱하여 정리하면 다음과 같이 식을 변형할 수 있어요.
 
