@@ -24,7 +24,7 @@ If you are familiar with English, go to [5 Reference](#anchor1). And this text i
 
 ## **1 Preparing**
 ***
-먼저 분석에 필요한 여러가지 패키지를 불러오겠습니다. DLNMs의 적합에 필요한 {dlnm}, {splines} 패키지를 제외한, 나머지 두 패키지 {tidyverse}는 data wragling, {stringr}은 문자열 handling, {lubridate}는 날짜를 다루기 위해 불러왔습니다. {lubridate}가 {base}의 날짜 함수들보다 훨씬 직관적이므로, 배워둘만한 가치가 있습니다(see, `vignette("lubridate", package = "lubridate")`). `r emo::ji("blush")`
+먼저 분석에 필요한 여러가지 패키지를 불러오겠습니다. DLNMs의 적합에 필요한 {dlnm}, {splines}를 제외한, 나머지 세 패키지 {tidyverse}는 data wragling, {stringr}, {lubridate} 각각은 문자열, 날짜를 다루기 위해 불러왔습니다. {stringr}과 {lubridate} 각각은 {base}의 문자열, 날짜 함수들보다 훨씬 직관적이므로, 배워둘만한 가치가 있습니다(see, `vignette("stringr", package = "stringr")`, `vignette("lubridate", package = "lubridate")`). `r emo::ji("blush")`
 
 ```{r}
 library(tidyverse)
