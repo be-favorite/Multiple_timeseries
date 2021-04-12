@@ -36,7 +36,7 @@ library(lubridate)
 library(TSA)
 library(forecast) # for visulalizing ccf analysis
 library(gridExtra) # for grid.arrange
-ggplot2::theme_set(theme_light()) # change the theme of ggplot2
+ggplot2::theme_set(theme_minimal()) # change the theme of ggplot2
 loaded_package <- c("lubridate", "TSA", "forecast", "gridExtra")
 .version <- map(loaded_package, packageVersion)
 names(.version) <- loaded_package
@@ -49,7 +49,7 @@ names(.version) <- loaded_package
 ### 2.1 CCF 분석{#anchor1}
 분포시차모형(distributed lag models, 이하 DLM)의 적합 이전에 꼭 선행되어야 할 교차상관분석(cross-correlation analysis, 이하 CCF 분석)에 대한 튜토리얼을 먼저 진행하겠습니다. 본 튜토리얼에서는 {datasets}에서 제공하는 1974 ~ 1979년 영국에서 발생한 여성과 남성의 폐질환으로 인한 월별 사망자 수에 관한 자료인 `fdeaths`(여성), `mdeaths`(남성)를 이용할 것 입니다.
 
-```{r, warning = FALSE, out.width = "80%", cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 tibble(fdeaths, mdeaths,
        date = seq(ymd("1974-01-01"), ymd("1979-12-01"), by = "months")) %>% 
   tidyr::pivot_longer(!date, names_to = "sex", values_to = "deaths") %>% 
@@ -66,7 +66,7 @@ tibble(fdeaths, mdeaths,
 ```
 
 좀 더 그림을 fancy하게 그리기 위해 위 과정을 거쳤으나, `ggplot()`이 어려운 분들은 `autoplot(){forecast}`을 이용하면 그릴 수 있습니다(see details [here](https://pkg.robjhyndman.com/forecast/reference/index.html)).
-```{r, warning = FALSE, out.width = "80%", cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 lung_deaths <- cbind(fdeaths, mdeaths)
 autoplot(lung_deaths) +
   scale_color_discrete(name = "sex", labels = c("female", "male")) +
@@ -77,7 +77,7 @@ autoplot(lung_deaths) +
 
 ccf 분석 및 시각화에는 {forecast} 패키지의 `ggCcf()`를 이용하려고 합니다. `ccf()`로도 시각화가 가능하나, `ggplot()` 형식으로 통일하기 위함입니다.
 
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 ggCcf(mdeaths, fdeaths, lag.max = 20, color = "orange") +
   scale_y_continuous(breaks = seq(-1, 1, 0.2)) + 
   labs(title = "")
@@ -86,7 +86,7 @@ ggCcf(mdeaths, fdeaths, lag.max = 20, color = "orange") +
 위 그림은 시차 $h = \pm20$까지의 교차상관을 보여주고 있는데, 동시차의 교차상관 값은 그려주지 않는 이슈가 있었습니다. 제 생각으로는 CCF 분석은 분포시차모형(distributed lag models, 이하 DLM)의 이전에 선행되는 분석으로 예측변수의 이전 시차와의 관계에 관심이 있지, 동 시차에 대한 관심은 없기 때문에 이에 관한 교차상관은 시각화에 포함하지 않은 것으로 추정해봅니다.
 
 그래도, 저는 동시차에 관한 교차상관 값도 그래프에 포함하고 싶었습니다. 다음과 같은 수고를 하면 그릴 수 있어요:
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 alpha <- 0.05
 n <- length(mdeaths)
 sigma <- 1
@@ -107,7 +107,7 @@ tibble(
 여기서 그림의 파란색 점선은 acf의 95% 신뢰구간에 해당합니다. 두 시계열 $x_t$(mdeaths)와 $y_t$(fdeaths)는 동 시차(lag = 0)에서 상관이 가장 높으므로, 두 변수는 동행 변수로 볼 수 있습니다. 이러한 경우에는 자연스럽게 DLM이 아닌 ARIMA 오차 회귀모형(regression with ARIMA errors)을 고려하면 되겠죠?
 
 다음으로는 두 시계열 간에 계절성으로 인한 [허구적 상관](https://be-favorite.tistory.com/76)이 존재하는지 확인하기 위해 계절 차분을 실시한 후, CCF 분석을 수행해보겠습니다. 즉, 여기서 계절차분은 일종의 백색화(또는 사전 백색화) 작업을 수행하는 과정이라고 할 수 있습니다.
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 d_fdeaths <- diff(fdeaths, 12)
 d_mdeaths <- diff(mdeaths, 12)
 lung_deaths_d <- cbind(d_fdeaths, d_mdeaths)
@@ -118,7 +118,7 @@ autoplot(lung_deaths_d) +
 ```
 
 다음으로 CCF 분석을 수행해 봅니다:
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 tibble(
   CCF = ggCcf(d_mdeaths, d_fdeaths, lag.max = 20, plot = FALSE)$acf %>% as.numeric,
   Lag = ggCcf(d_mdeaths, d_fdeaths, lag.max = 20, plot = FALSE)$lag %>% as.numeric
@@ -141,12 +141,12 @@ head(bluebird)
 ```
 
 해당 자료는 감자칩 판매량은 우편향으로 인한 정상성 위배로 로그 변환이 실시된 값으로(`log.price`) 주어집니다.
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 autoplot(bluebird, facets = TRUE)
 ```
 
 두 계열 간에 강한 음의 연관이 있는 것으로 보입니다. 허구적 회귀 존재 여부를 생각하여 백색화 전 후의 두 시계열에 대한 CCF 분석을 수행합니다. 예제 진행의 편의상 `ccf()`를 이용하겠습니다.
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 par(mfrow = c(1, 2))
 ccf(y = bluebird[, 1], x = bluebird[, 2], ylab = "CCF", main = "")
 ccf(y = bluebird[, 1] %>% diff, x = bluebird[, 2] %>% diff, ylab = "CCF",
@@ -168,7 +168,7 @@ summary(mod)
 
 잔차의 ACF와 PACF로 ARIMA 구조에 대해 파악해봅시다.
 
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 mod_acf <- ggAcf(residuals(mod)) + 
   labs(title = "")
 mod_pacf <- ggPacf(residuals(mod)) + 
@@ -203,7 +203,7 @@ summary(dlm)
 ```
 
 당연히 동행시차의 예측변수를 통해 수행한 회귀모형보다 성능은 떨어지겠지만, 예제를 위해 진행했음을 알아주시기 바랍니다.
-```{r, warning = FALSE, out.width = "80%",  cache = TRUE}
+```{r, warning = FALSE, out.width = "80%"}
 mod_acf <- ggAcf(residuals(dlm)) + 
   labs(title = "")
 mod_pacf <- ggPacf(residuals(dlm)) + 

@@ -35,7 +35,7 @@ library(dlnm)
 library(splines)
 library(stringr)
 library(lubridate)
-ggplot2::theme_set(theme_light())
+ggplot2::theme_set(theme_minimal())
 loaded_package <- c("dlnm", "stringr", "splines", "lubridate")
 .version <- map(loaded_package, packageVersion)
 names(.version) <- loaded_package
