@@ -241,10 +241,10 @@
 <p>먼저 분석에 필요한 여러가지 패키지를 불러오겠습니다. DLNMs의 적합에 필요한 {dlnm}, {splines}를 제외한, 나머지 세 패키지 {tidyverse}는 data wragling, {stringr}, {lubridate} 각각은 문자열, 날짜를 다루기 위해 불러왔습니다. {stringr}과 {lubridate} 각각은 {base}의 문자열, 날짜 함수들보다 훨씬 직관적이므로, 배워둘만한 가치가 있습니다(see, <code>vignette(&quot;stringr&quot;, package = &quot;stringr&quot;)</code>, <code>vignette(&quot;lubridate&quot;, package = &quot;lubridate&quot;)</code>). 😊</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span></code></pre></div>
 <pre><code>## -- Attaching packages --------------------------------------- tidyverse 1.3.0 --</code></pre>
-<pre><code>## √ ggplot2 3.3.3     √ purrr   0.3.4
-## √ tibble  3.1.0     √ dplyr   1.0.5
-## √ tidyr   1.1.3     √ stringr 1.4.0
-## √ readr   1.4.0     √ forcats 0.5.1</code></pre>
+<pre><code>## v ggplot2 3.3.3     v purrr   0.3.4
+## v tibble  3.1.0     v dplyr   1.0.5
+## v tidyr   1.1.3     v stringr 1.4.0
+## v readr   1.4.0     v forcats 0.5.1</code></pre>
 <pre><code>## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
 ## x dplyr::filter() masks stats::filter()
 ## x dplyr::lag()    masks stats::lag()</code></pre>
@@ -252,11 +252,10 @@
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(splines)</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>ggplot2<span class="sc">::</span><span class="fu">theme_set</span>(<span class="fu">theme_light</span>())</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>loaded_package <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;dlnm&quot;</span>, <span class="st">&quot;stringr&quot;</span>, <span class="st">&quot;splines&quot;</span>, <span class="st">&quot;lubridate&quot;</span>)</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>.version <span class="ot">&lt;-</span> <span class="fu">map</span>(loaded_package, packageVersion)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(.version) <span class="ot">&lt;-</span> loaded_package</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>.version</span></code></pre></div>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>loaded_package <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;dlnm&quot;</span>, <span class="st">&quot;stringr&quot;</span>, <span class="st">&quot;splines&quot;</span>, <span class="st">&quot;lubridate&quot;</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>.version <span class="ot">&lt;-</span> <span class="fu">map</span>(loaded_package, packageVersion)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(.version) <span class="ot">&lt;-</span> loaded_package</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>.version</span></code></pre></div>
 <pre><code>## $dlnm
 ## [1] &#39;2.4.5&#39;
 ## 
@@ -264,7 +263,7 @@
 ## [1] &#39;1.4.0&#39;
 ## 
 ## $splines
-## [1] &#39;4.0.4&#39;
+## [1] &#39;4.0.5&#39;
 ## 
 ## $lubridate
 ## [1] &#39;1.7.10&#39;</code></pre>
@@ -294,6 +293,7 @@
 </div>
 <div id="modeling" class="section level2">
 <h2><strong>3 Modeling</strong></h2>
+<hr />
 <div id="anchor2" class="section level3">
 <h3>3.1 Example 1: a simple DLM</h3>
 <p>첫 번째로 간단한 형태의 DLM을 적합해봅시다. 기온에 대한 효과는 보정하고 <span class="math inline">\({\rm{PM}}_{10}\)</span>이 사망자 수에 미치는 효과에 대해 모델링을 할 겁니다. 먼저 두 변수 각각에 대한 교차 기저(cross-basis) 행렬을 정의해야합니다. 우리가 관심있는 효과 <span class="math inline">\({\rm{PM}}_{10}\)</span>에 대해서는 예측변수의 차원에 대해서는 선형으로 가정할 것이며, 이러한 관점에서 우리는 해당 모형을 a simple DLM이라 부릅니다. 다음과 같이 모형 자체에서 기온 변수를 예측변수의 차원에 대해 비선형으로 고려한다고 해도 말이죠.</p>
