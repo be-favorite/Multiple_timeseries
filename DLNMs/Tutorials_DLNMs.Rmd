@@ -69,26 +69,26 @@ cb1_temp <- crossbasis(chicagoNMMAPS %>% pull(temp),
                        arglag = list(fun = "strata", breaks = 1))
 ```
 
-`crossbasis()`의 첫 번째 인수에는 교차 기저를 생성할 시계열의 벡터를 명시해주면 됩니다. ${\rm{PM}}_{10}$은 해당 변수의 차원에서는 선형으로 고려하였고, 시차 차원(lag dimension)에서는 15일까지의 지연효과에 4차 다항회귀를 고려하였습니다. 그리고, 기온의 경우 먼저 변수 차원에서 자유도 5인 [natural cubic spline](https://be-favorite.tistory.com/56?category=923110)(default option)을 고려하였으며, knot의 경우 boundary knots은 기온의 범위 양끝에 위치하며 따로 지정하지 않으면 internal knots 등간격으로 지정이 됩니다. 그리고, 반드시 자유도(`df`)에 대한 명시는 필수적입니다. 자유도가 커질수록 더 복잡한(flexible) 형태의 곡선을 고려하게 됩니다. 기온의 시차 차원에 대해서는 3일까지의 지연효과를 고려하였고, break point가 1개로 층을 나눠(0, 1-3) 각 층(strata)에 상수로 지연 효과를 갖도록 하였습니다.
+`crossbasis()`의 첫 번째 인수에는 교차 기저를 생성할 시계열의 벡터를 명시해주면 됩니다. ${\rm{PM}}_{10}$은 해당 변수의 차원에서는 선형으로 고려하였고, 시차 차원(lag dimension)에서는 15일까지의 지연효과에 4차 다항회귀를 고려하였습니다. 그리고, 기온의 경우 먼저 변수 차원에서 자유도 5인 [natural cubic spline](https://be-favorite.tistory.com/56?category=923110)(default option)을 고려하였으며, knot의 경우 boundary knots은 기온의 범위 양끝에 위치하며 따로 지정하지 않으면 internal knots는 등간격으로 지정됩니다. 그리고, 자유도(`df`)에 대한 명시는 필수적입니다. 자유도가 커질수록 더 복잡한(flexible) 형태의 곡선을 고려하게 됩니다. 기온의 시차 차원에 대해서는 3일까지의 지연효과를 고려하였고, break point를 1개로 층을 나눠(0, 1-3) 각 층(strata)에 상수로 지연 효과를 갖도록 하였습니다.
 
 `crossbasis()`는 crossbasis 객체를 생성하며, 생성된 교차기저의 세부사항을 확인하기 위해서는 crossbasis 객체에 대해 `summary()`를 수행해주면 됩니다:
 ```{r}
 summary(cb1_pm)
 ```
 
-이렇게 생성한 두 crossbasis 객체는 회귀모형의 모형식에 포함되게 됩니다. 여기서는 사망자 수에 관한 시계열 자료에 모형화를 해야하므로, 과산포 포아송모형을 적합하려고 합니다. 그리고, 해당 시계열의 계절성과 추세의 반영하기 위해 `splines::ns()`(default is `degree = 3`, i.e. natural cubic splines)로 `time`에 대해 자유도가 $7 {\rm{df/year}}$인 natural cubic splines을 적용해주었습니다. 따로 knot을 설정하지 않았습니다. 그리고, 요일에 따른 계절성의 추가적인 보정을 위해 자료에서 요일 나타내는 변수 `dow`(day of weeks)를 포함시켰습니다.
+이렇게 생성한 두 crossbasis 객체는 회귀모형의 모형식에 포함되어 사용됩니다. 여기서는 count data에 해당하는 사망자 수에 관한 시계열 자료를 모형화 해야하므로, 과산포 포아송모형을 적합할 것입니다. 그리고, 해당 시계열의 계절성과 추세의 반영하기 위해 `splines::ns()`(default is `degree = 3`, i.e. natural cubic splines)로 `time`에 대해 자유도가 $7 {\rm{df/year}}$인 natural cubic splines을 적용해주었습니다. knot에 대한 부분은 따로 설정하지 않았습니다. 그리고, 요일에 따른 계절성의 추가적인 보정을 위해 자료에서 요일 나타내는 변수 `dow`(day of weeks)를 포함시켰습니다.
 ```{r}
 num_year <- chicagoNMMAPS %>% select(year) %>% unique() %>% nrow()
 dlm_simple <- glm(death ~ cb1_pm + cb1_temp + ns(time, 7*num_year) + dow,
                   family = quasipoisson(), chicagoNMMAPS)
 ```
 
-특정 수준의 ${\rm{PM}}_{10}$이 사망자 수에 대해 미치는 추정된 효과는 `crosspred()`로 요약할 수 있습니다.
+모형을 통해 추정된 특정 수준의 ${\rm{PM}}_{10}$이 사망자 수에 대해 미치는 효과는 `crosspred()`로 요약할 수 있습니다.
 ```{r}
 pred1_pm <- crosspred(cb1_pm, dlm_simple, at = 0:20, bylag = 0.2, cumul = TRUE)
 ```
 
-여기서 `at = 0:20`은 ${\rm{PM}}_{10}$의 각 값 $0\sim20\mu gr/m^3$에 대한 각 사망자 수를 예측하라는 말이며, `bylag = 0.2`는 예측값을 0.2씩 증가하는 시차 차원을 따라서 계산하라는 뜻입니다. 이 grid를 촘촘하게 할수록 시차 차원의 곡선이 더 smooth하게 그려질 겁니다. 마지막으로, `cumul = TRUE`로 설정해줄 경우, 시차에 따른 효과뿐만 아니라 추가적으로 시차를 따라 ${\rm{PM}}_{10}$이 미치는 위험을 누적시켜 계산해줍니다. `crosspred()`에 의해 생성되는 이 crosspred 객체의 예측 결과는 `plot()`으로 시각화할 수 있습니다.
+여기서 `at = 0:20`은 ${\rm{PM}}_{10}$의 각 값 $0\sim20\mu gr/m^3$에 대한 각 사망자 수를 예측하라는 말이며, `bylag = 0.2`는 시차 차원을 따라 예측값을 0.2씩 증가시켜가며 예측하라는 뜻입니다. 이 grid를 촘촘하게 할수록 시차 차원의 곡선은 더 부드럽게(smooth) 그려질 겁니다. 마지막으로, `cumul = TRUE`로 설정해줄 경우, 시차에 따른 효과뿐만 아니라 추가적으로 시차를 따라 ${\rm{PM}}_{10}$이 미치는 위험을 누적시켜 계산해줍니다. crosspred 객체의 예측 결과는 `plot()`으로 시각화할 수 있습니다:
 
 ```{r simple dlm, warning = FALSE, fig.cap = "Figure 1", fig.subcap = c("(a)", "(b)"), fig.ncol = 2, fig.align = "center", out.width = "50%"}
 plot(pred1_pm, "slices", var = 10, col = 3, ylab = "RR", ci.arg = list(density = 15, lwd = 2),
@@ -97,14 +97,14 @@ plot(pred1_pm, "slices", var = 10, col = 2, ylab = "RR", cumul = TRUE, ylab = "C
      main = "Cumulative association with a 10-unit increase in PM10")
 ```
 
-`slice` 옵션은 변수의 특정 값에 대한 지연 효과를 그리라는 말이며, 즉 위 그림 각각은 ${\rm{PM}}_{10} = 10 \mu gr/m^3$에 관한 지연 효과, 누적 지연 효과에 따른 사망 상대위험도(Relative Risk, RR)를 나타냅니다. 그리고 이 사망의 상대위험도는 $0 \mu gr/m^3$을 기준으로 계산되며, 즉 ${\rm{PM}}_{10}$의 농도가 10만큼 증가할 경우의 상대위험도를 나타낸다고 할 수 있습니다. 그리고 `plot.crosspred()`(crosspred 객체를 `plot()`에 통과시키면 자동으로 호출, see [here](https://be-favorite.tistory.com/72?category=970160))에서는 `ci = "area"`를 default로 상대위험도의 신뢰 구간도 그려주는데, 좌측 그림의 경우 추가적인 옵션 `ci.arg = list(density = 15, lwd = 2)`로 하여 신뢰구간에 쉐이딩을 해주었습니다(설정된 `ci.arg`는 `polygon()`을 통해 사용됨).
+`slice` 옵션은 변수의 특정 값에 대한 지연 효과를 그리라는 말을 뜻하며, Figure 1 각각은 ${\rm{PM}}_{10} = 10 \mu gr/m^3$에 관한 지연 효과, 누적 지연 효과에 따른 사망 상대위험도(Relative Risk, RR)를 나타냅니다. 그리고 이 사망의 상대위험도는 $0 \mu gr/m^3$을 기준(reference value)으로 계산되며, 즉 ${\rm{PM}}_{10}$의 농도가 10만큼 증가할 경우의 상대위험도를 나타낸다고 할 수 있습니다. 그리고 `plot.crosspred()`(crosspred 객체를 `plot()`에 통과시키면 자동으로 호출, see [here](https://be-favorite.tistory.com/72?category=970160))에서는 `ci = "area"`를 default로 상대위험도의 신뢰 구간도 그려주는데, 좌측 그림의 경우 추가적인 옵션 `ci.arg = list(density = 15, lwd = 2)`로 하여 신뢰구간에 쉐이딩을 조금 다르게 해주었습니다.
 
 Figure 1의 경우 2가지 측면으로 해석할 수 있습니다:
 
 i) 전향적 해석: Figure 1의 지연효과 곡선은 ${\rm{PM}}_{10}$의 농도가 10만큼 증가할 경우, 미래에 사망 위험이 증가됨을 나타냄
 ii) 후향적 해석: 특정 날짜의 과거에 ${\rm{PM}}_{10}$이 같은 농도로 매일 발생한 경우, 사망 위험이 증가함
 
-그리고, Figure 1에서 추가적으로 알 수 있는 바는 ${\rm{PM}}_{10}$의 증가로 인한 상대위험도의 증가는 오히려 시차가 길어지면(지연이 오래되면), 반대로 사망 위험이 줄어든다는 점입니다. 이는 Figure 1의 우측 그림으로 상대위험도의 전반적인 효과을 보면 확실하게 확인할 수 있습니다. ${\rm{PM}}_{10}$의 농도가 10만큼 증가되는 것으로 야기되는 위험을 시차 15까지의 지연 효과까지 고려하여 상대위험도를 모두 합한 경우, 결국 1보다 약간 더 적은 수준의 상대위험도을 갖고있죠(${\rm{PM}}_{10}$이 $0 \mu gr/m^3$과 비하여). 
+그리고, Figure 1에서 추가적으로 알 수 있는 바는 ${\rm{PM}}_{10}$의 증가로 인한 상대위험도는 오히려 시차가 길어지면(지연이 오래되면), 반대로 사망 위험이 줄어든다는 점입니다. 이는 Figure 1의 우측 그림으로 상대위험도의 전반적인 효과을 보면 확실하게 확인할 수 있습니다. ${\rm{PM}}_{10}$의 농도가 10만큼 증가되는 것으로 야기되는 위험을 시차 15까지의 지연 효과까지 고려하여 상대위험도를 모두 합한 경우, 결국 1보다 약간 더 적은 수준의 상대위험도을 갖고있죠(${\rm{PM}}_{10}$이 $0 \mu gr/m^3$인 경우와 비하여). 
 이러한 ${\rm{PM}}_{10}$의 농도 증가에 따른 전반적인 상대위험도의 수준은 crosspred 객체로부터 추출할 수 있습니다. 먼저, 전반적인 상대위험도 값은 `allRRfit`을 통해 추출합니다.
 
 ```{r}
@@ -135,7 +135,7 @@ cb2_temp <- crossbasis(chicagoNMMAPS_seas %>% pull(temp), lag = 10,
                        group = chicagoNMMAPS_seas %>% pull(year))
 ```
 
-교차 기저를 정의할 때 사용된 새로운 인수들에 대해 하나하나 설명하겠습니다. 먼저, `crossbasis()`는 `group` 인수를 통해 계열을 다중 시계열로 정의합니다. 그리고, `fun = "thr"`과 `thr`을 이용하면 변수의 효과가 특정 구간에서는 존재하지 않도록 할 수 있습니다. ${\rm{O}}_3$의 경우 예측변수 차원에서 $40.3 \mu g r/m^3$까지, 기온은 예측변수 차원에서 15도~25도 구간에서 효과가 없도록 설정하였습니다. 그리고, 여기서 생략된 옵션으로 `side`가 있는데, ${\rm{O}}_3$에 관한 옵션에서처럼 `thr`(threshold value)의 값이 하나만 주어지면 `side = h`(high)가 default로 설정되어 minimum을 잡아주고, `temp`에서처럼 2개의 값이 주어지면 `side = d`(double)이 default로 설정되어 minimum과 maximum 값을 잡아준다(see `?thr`). 이제 시차 차원에 대한 설정을 보자. ${\rm{O}}_3$는 시차 5까지 지연효과를 고려하였으며 `fun = "integer"`을 통해 상수 함수로 효과가 추정되도록 하였습니다. 즉, 해당 모형도 결국 관심요인에 대한 변수차원에서 효과를 선형으로 추정을 수행하기 때문에 DLM에 해당합니다. 기온의 경우는 시차 10까지 지연효과를 고려하였고, `fun = "strate"`로 층을 나눠(0-1, 2-5, 6-10) 상수 함수로 효과가 추정되도록 했습니다. `summary()`를 적용하면 교차기저의 specification을 간략하게 확인할 수 있습니다:
+교차 기저를 정의할 때 사용된 새로운 인수들에 대해 하나하나 설명하겠습니다. 먼저, `crossbasis()`는 `group` 인수를 통해 계열을 다중 시계열로 정의합니다. 그리고, `fun = "thr"`과 `thr`을 이용하면 변수의 효과가 특정 구간에서는 존재하지 않도록 할 수 있습니다. ${\rm{O}}_3$의 경우 예측변수 차원에서 $40.3 \mu g r/m^3$까지, 기온은 예측변수 차원에서 15도~25도 구간에서 효과가 없도록 설정하였습니다. 그리고, 여기서 생략된 옵션으로 `side`가 있는데, ${\rm{O}}_3$에 관한 옵션에서처럼 `thr`(threshold value)의 값이 하나만 주어지면 `side = h`(high)가 default로 설정되어 minimum을 잡아주고, `temp`에서처럼 2개의 값이 주어지면 `side = d`(double)이 default로 설정되어 minimum과 maximum 값을 잡아줍니다(see `?thr`). 예를 들면, ${\rm{O}}_3$는 $40.3 \mu g r/m^3$까지는 사망자 수에 효과를 미치지 않는 다는 것입니다. 이제 시차 차원에 대한 설정을 봅시다. ${\rm{O}}_3$는 시차 5까지 지연효과를 고려하였으며 `fun = "integer"`을 통해 상수 함수로 효과가 추정되도록 하였습니다. 즉, 해당 모형도 결국 관심요인에 대한 변수차원에서 효과를 선형으로 추정을 수행하기 때문에 DLM에 해당합니다. 기온의 경우는 시차 10까지 지연효과를 고려하였고, `fun = "strata"`로 층을 나눠(0-1, 2-5, 6-10) 상수 함수로 효과가 추정되도록 했습니다. 적용한 설정을 `summary()`를 통해 한번 더 확인해 보겠습니다.
 ```{r}
 summary(cb2_temp)
 ```
@@ -147,13 +147,13 @@ dlm_season <- glm(death ~ cb2_o3 + cb2_temp + ns(doy, 4) + ns(time, 3) + dow,
                   family = quasipoisson(), chicagoNMMAPS_seas)
 ```
 
-모형에는 교차기저 외에, 연도별 계절성과 추세를 반영하기 위해, `doy`(day of year), `time` 각각에 natural cubic splines을 적용해주었습니다. 특히, 후자(`time`)에 관한 natural splines의 경우 ${\rm{year}}$ 당 자유도 7일 고려한 앞선 분석과는 달리, 매끄러운 연간 추세만을 잡아내면 되기때문에 훨씬 낮은 자유도로 설정하였습니다. 그리고, 요일별 효과를 보정하기 위해 `dow`(day of weeks)도 모형에 포함하였습니다. 추정과 예측 `crosspred()`를 이용해 이전 분석과 같은 형태로 수행할 수 있습니다.
+모형에는 교차기저 외에, 연도별 계절성과 추세를 반영하기 위해 마찬가지로 `doy`(day of year), `time` 각각에 natural cubic splines을 적용해주었습니다. 특히, 후자(`time`)에 관한 natural splines의 경우 ${\rm{year}}$ 당 자유도 7일 고려한 앞선 분석과는 달리, 매끄러운 연간 추세만을 잡아내면 되기때문에 훨씬 낮은 자유도로 설정하였습니다. 그리고, 요일별 효과를 보정하기 위해 `dow`(day of weeks)도 모형에 포함하였습니다. 추정과 예측을 수행하는 과정은 이전의 예제와 동일합니다.
 ```{r}
 pred2_o3 <- crosspred(cb2_o3, dlm_season, at = c(0:65, 40.3, 50.3))
 ```
 
-$0 \sim 65 \mu gr/m^3$까지의 오존 농도에 대한 상대위험도를 계산하였으며(reference는 자동으로 0으로 설정), 사전에 설정한 threshold value의 minimum 값에 해당하는 40.3과 threshold에서 10 단위만큼 증가시킨 경우의 상대위험도를 보기위해, $40.3\mu gr/m^3$, $50.3\mu gr/m^3$을 각각 추가적으로 고려하였습니다(reference는 40.3으로 `thr`에 의해 자동으로 선택).
-이제 결과를 시각화해보겠습니다. 첫 번째는 ${\rm{O}}_3$의 농도를 threshold로부터 10 단위 증가된 경우에 대한 predictor-specific lag-response 관계이며, 두 번째는 ${\rm{O}}_3$ 농도에 따른 시차 5까지의 지연 누적 효과(`type = "overall"`)를 나타내보았습니다.
+$0 \sim 65 \mu gr/m^3$까지 1씩 값을 증가시키며 오존 농도에 대한 상대위험도를 계산하였고(reference value는 자동으로 0으로 설정됨), 사전에 설정한 threshold value의 minimum 값에 해당하는 40.3과 threshold에서 10 단위만큼 증가시킨 경우의 상대위험도를 보기위해, $40.3\mu gr/m^3$, $50.3\mu gr/m^3$을 각각 추가적으로 고려하였습니다(reference는 40.3으로 `thr`에 의해 자동으로 선택).
+이제 결과를 시각화해보겠습니다. 첫 번째 그림은 ${\rm{O}}_3$의 농도를 threshold로부터 10 단위 증가한 경우에 대한 상대위험도를 시차에 따라 나타낸 것으로, 이러한 종류의 그림은 predictor-specific lag-response 관계를 나타낸다고 표현합니다. 그리고, 두 번째 그림은 ${\rm{O}}_3$ 농도에 따른 시차 5까지의 지연효과를 누적하여(`type = "overall"`)를 나타낸 것입니다.
 
 ```{r seasonal, warning = FALSE, fig.cap = "Figure 2", fig.subcap = c("(a)", "(b)"), fig.ncol = 2, fig.align = "center", out.width = "50%"}
 plot(pred2_o3, "slices", var = 50.3, ci = "bars", type = "p", col = 2, pch = 19,
@@ -162,9 +162,7 @@ plot(pred2_o3, "overall", xlab = "Ozone", ci = "l", col = 3, ylim = c(0.9, 1.3),
      ci.arg = list(col = 1, lty = 3), main = "Overall cumulative association for 5 lags")
 ```
 
-좌측그림의 경우 [4.1](#anchor2)와 달리 80% 신뢰구간(`ci.level = 0.8`)으로 고려하였으며, `ci = "bars"`(`ci = "area" ` is default)를 통해 구간이 bar 형태로 표시되게 하였습니다. 우측그림의 경우 `ci = "l"`로 하여 선으로 신뢰구간이 표시되게 하였고, 선의 색과 형태를 `ci.arg`로 조정하였습니다.
-
-전반적인 상대위험도 값과 신뢰구간을 구하는 방식은 [4.1](#anchor2)와 같습니다:
+좌측그림의 경우 [4.1](#anchor2)와 달리 80% 신뢰구간(`ci.level = 0.8`)으로 고려하였으며, `ci = "bars"`(`ci = "area" ` is default)를 통해 구간이 bar 형태로 표시되게 하였습니다. 우측그림의 경우 `ci = "l"`로 하여 선으로 신뢰구간이 표시되게 하였고, 선의 색과 형태를 `ci.arg`로 조정하였습니다. 특정 값에 대한 전반적인 상대위험도 값과 신뢰구간을 구하는 방식은 전과 같습니다:
 ```{r}
 pred2_o3$allRRfit["50.3"]
 ```
@@ -174,11 +172,9 @@ cbind(pred2_o3$allRRlow, pred2_o3$allRRhigh)["50.3", ]
 ```
 
 ### 3.3 Example 3: a bi-dimensional DLNM
-앞선 두 예제에서는 관심요인 ${\rm{PM}}_10$, ${\rm{O}}_3$의 예측변수 공간에 대해 각각 선형, threshold를 갖는 선형의 형태로 추정을 수행한 DLM에 대해서만 다루었습니다. 이러한 DLM의 경우에는 예측변수에 대한 차원은 고려 대상이 아니며, 특정 시차 또는 농도를 일정하게 증가시켰을 때 시차를 따라 나타나는 전반적인 누적 효과를 쉽게 시각화할 수 있습니다. 반면에, 예측변수의 차원에 대해서도 비선형적 관계를 허용하는 DLNMs의 경우에는, 예측변수와 시차 공간을 따라 비선형적으로 다양하게 나타나는 관계를 보기위해 2차원적(bi-dimensional) 관점에서 시각화를 수행해야합니다.
+앞선 두 예제에서는 관심요인 ${\rm{PM}}_{10}$, ${\rm{O}}_3$의 예측변수 공간에 대해 각각 선형, threshold를 갖는 선형의 형태로 추정을 수행한 DLM에 대해서만 다루었습니다. 이러한 DLM의 경우에는 예측변수에 대한 차원은 고려 대상이 아니며, 특정 시차 또는 농도를 일정하게 증가시켰을 때 시차를 따라 나타나는 전반적인 누적 효과를 쉽게 시각화할 수 있습니다. 반면에, 예측변수의 차원에 대해서도 비선형적 관계를 허용하는 DLNMs의 경우에는, 예측변수와 시차 공간을 따라 비선형적으로 다양하게 나타나는 관계를 보기위해 2차원적(bi-dimensional) 관점에서 시각화를 수행해야합니다.
 
-본 예제에서는 이러한 복잡한 관계를 나타내는 DLNMs을 적합하고 결과를 해석하는 과정을 step by step으로 다룰겁니다. 전체적인 틀은 앞선 과정과 동일하니까 너무 걱정하지 않으셔도 됩니다. 이번 DLNMs의 적합에서는 기온을 관심요인으로 하여 시차 1, 30까지의 지연효과를 각각 고려한 ${\rm{PM}}_{10}$과 기온이 사망자 수에 미치는 영향에 대해 모델링할 것입니다. 
-
-역시나 먼저 교차 기저에 대한 정의가 필요합니다:
+본 예제에서는 이러한 복잡한 관계를 나타내는 DLNMs을 적합하고 결과를 해석하는 과정을 step by step으로 다룰겁니다. 전체적인 틀은 앞선 과정과 동일하므로 너무 걱정하지 않으셔도 됩니다. 이번 DLNMs의 적합에서는 기온을 관심요인으로 하여 시차 1과 시차 30까지의 지연효과를 각각 고려한 ${\rm{PM}}_{10}$과 기온이 사망자 수에 미치는 영향에 대해 모델링할 것입니다. 역시나 먼저 교차 기저에 대한 정의가 필요합니다:
 ```{r}
 cb3_pm <- crossbasis(chicagoNMMAPS %>% pull(pm10), lag = 1, argvar = list(fun = "lin"),
                      arglag = list(fun = "strata"))
@@ -189,7 +185,7 @@ cb3_temp <- crossbasis(chicagoNMMAPS %>% pull(temp), lag = 30,
                        arglag = list(knots = lagknots))
 ```
 
-기온에 대한 교차기저에는 `ns()`, `bs()` 각각을 이용하여 시차 공간에는 natural splines, 예측변수 공간에는 non-natural splines(Boundary에서 선형성 제약이 없는 것, 이하 b-spline)을 설정하였습니다. 예측변수 공간에 대해서는 `eqaulknots()`을 통해 등간격의 knots을 갖는 자유도 5인 2차 b-spline, 시차공간에 대해서는 `logknots()`을 통해 log-scale의 등간격으로 3개의 knots을 갖는 natural cubic splines(default is `df = 1`, `degree = 3`, see `?logknots`)을 고려하였습니다. 그리고, 보정 요인으로 고려할 ${\rm{PM}}_{10}$은 예측변수 공간은 선형으로, 시차공간은 상수함수로 설정하였습니다. 바로 모형 적합 및 예측, 시각화를 진행하겠습니다:
+기온에 대한 교차기저에는 `ns()`, `bs()` 각각을 이용하여 시차 공간에는 natural splines, 예측변수 공간에는 non-natural splines(boundary에서 선형성 제약이 없는 것, 이하 b-spline)을 설정하였습니다. 예측변수 공간에 대해서는 `eqaulknots()`을 통해 등간격의 knots을 갖는 자유도 5인 2차 b-spline, 시차공간에 대해서는 `logknots()`을 통해 log-scale의 등간격으로 3개의 knots을 갖는 natural cubic splines(default is `df = 1`, `degree = 3`, see `?logknots`)을 고려하였습니다. 그리고, 보정 요인으로 고려할 ${\rm{PM}}_{10}$은 예측변수 공간은 선형으로, 시차공간은 상수함수로 설정하였습니다. 다음은 위와 같은 설정으로 모형 적합 및 예측, 시각화를 수행한 결과입니다:
 
 ```{r dlnm, warning = FALSE, fig.cap = "Figure 3", fig.subcap = c("(a)", "(b)"), fig.ncol = 2, fig.align = "center", out.width = "50%"}
 mod_dlnm <- glm(death ~ cb3_pm + cb3_temp + ns(time, 7*14) + dow,
@@ -201,7 +197,7 @@ plot(pred3_temp, "contour", xlab = "Temperature", key.title = title("RR"),
      plot.title = title("Contour plot", xlab = "Temperature", ylab = "Lag"))
 ```
 
-먼저 여기서는 기온을 21도로 중심화시켰으며, 이에따라 추정된 효과의 해석에 대한 reference는 21도가 됩니다. 예측변수의 공간도 비선형으로 모델링되기 때문에 명확한 reference 값이 존재하지 않기때문에, 중심화 과정을 통해 reference 값을 명시하는 것이 꼭 필요로 됩니다. 그리고, `by = 1`을 통해 예측변수의 범위내에 모든 정수값에 대해 예측이 수행되었습니다. 이제 그림을 보겠습니다. 좌측의 `theta`, `phi`, `lphi`로 설정된 각도에서 보여지는 3차원 그림에 해당하고, 우측 그림은 등고선 그림에 해당합니다. 등고선 그림에 대한 추가적인 정보는 `?persp`, `?filled.contour`에서 확인할 수 있습니다. Figure 3의 두 그림은 2차원에 존재하는 exposure-lag-response간 연관의 포괄적으로 요약하여 제공해줍니다. 다만, 예측변수의 특정값 또는 특정 시차에 대한 지연효과에 대한 연관을 보여주는 것에는 한계가 존재합니다. 그리고, 또 하나의 한계점은 3차원 그림과 등고선 그림의 특성상 신뢰구간의 시각화가 어렵다는 점입니다. 그래도, exposure-lag-response 간의 전체적인 연관을 포괄적으로 보여준다는 점만으로도 Figure 3은 충분한 가치가 있습니다.`r emo::ji("blush")` 특정값에 대한 연관(predictor-specific lag-response)과 같은 좀 더 세부적인 분석이 필요하다면, 이전 섹션에서처럼 `"slice"`를 이용하면 됩니다:
+먼저 여기서는 기온을 21도로 중심화시켰으며, 이에 따라 reference value는 21도가 됩니다. DLNMs에서는 예측변수의 공간도 비선형으로 모델링되기 되어 명확한 reference 값이 존재하지 않기 때문에, 중심화 과정을 통해 reference 값을 명시하는 것이 꼭 필요로 됩니다. 그리고, `by = 1`을 통해 예측변수의 범위내에 모든 정수값에 대해 예측이 수행되었습니다. 이제 그림을 보겠습니다. 좌측의 `theta`, `phi`, `lphi`로 설정된 각도에서 보여지는 3차원 그림에 해당하고, 우측 그림은 등고선 그림에 해당합니다. 등고선 그림에 대한 추가적인 정보는 `?persp`, `?filled.contour`에서 확인할 수 있습니다. Figure 3의 두 그림과 같이 노출 변수(exposure, predictor)에 따른 상대위험도를 나타내는 그림은 exposure lag-response 관계를 나타낸다고 표현합니다. 즉, Figure 3과 같은 종류들의 그림은 exposure lag-response 관계에 대한 연관을 포괄적으로 요약해줍니다. 다만, 예측변수의 특정값 또는 특정 시차에 대한 지연효과에 대한 연관을 보여주는 것에는 한계가 존재합니다. 그리고, 또 하나의 한계점은 3차원 그림과 등고선 그림의 특성상 신뢰구간의 시각화가 어렵다는 점입니다. 그래도, exposure lag-response 관계의 전체적인 연관을 포괄적으로 보여준다는 점만으로도 Figure 3은 충분한 가치가 있습니다. 아울러, 특정값에 대한 연관(predictor-specific lag-response)과 같은 좀 더 세부적인 부분에 관심이 있다면, Figure 3과 같이 `"slice"` 옵션을 설정해 시각화를 수행해주면 됩니다:
 
 ```{r dlmm predictor-specific, warning = FALSE, fig.cap = "Figure 4", fig.subcap = c("(a)", "(b)"), fig.ncol = 2, fig.align = "center", out.width = "50%"}
 plot(pred3_temp, "slices", var=-20, ci="n", col=1, ylim=c(0.95,1.25), lwd=1.5,
@@ -212,12 +208,12 @@ plot(pred3_temp, "slices", var=c(-20,33), lag=c(0,5), col=4,
      ci.arg=list(density=40,col=grey(0.7)))
 ```
 
-Figure 4의 좌측 그림은 predictor-specific(`c(-20, 0, 27, 33)`) lag-response 곡선에 해당하며, `lines()`를 사용하 저기온부터 고기온까지의 lag-response 곡선을 나타내었다(reference는 마찬가지로 21도). 그리고, 우측 그림은 `lag = c(0, 5)`를 통해 시차 0, 시차 5에서의 지연효과 각각에 대한 predictor-response 곡선, `var = c(-20, 33)`을 통해 -20도, 33도에서의 각각에 대한 lag-response 곡선을 그린것이다. 아울러, 좌측 그림의 경우에 `ci = "n"`을 통해 신뢰구간을 표시하지 않았으며, 우측그림의 경우 95% 신뢰구간을 default로 대비(contrast)를 0.7로 설정해 신뢰구간이 좀 더 잘 보이도록 그려주었습니다.
+Figure 4의 좌측 그림은 predictor-specific(`c(-20, 0, 27, 33)`) lag-response 곡선에 해당하며, `lines()`를 사용하여 저기온부터 고기온까지의 predictor-specific lag-response 곡선을 나타내었습니다(reference는 마찬가지로 21도). 그리고, 우측 그림은 `lag = c(0, 5)`를 통해 시차 0, 시차 5에서의 지연효과 각각에 대한 predictor-response 곡선, `var = c(-20, 33)`을 통해 -20도, 33도에서의 각각에 대한 lag-response 곡선을 그린 것입니다. 또한, 좌측 그림의 경우에 `ci = "n"`을 통해 신뢰구간을 표시하지 않았으며, 우측그림의 경우 95% 신뢰구간을 default로 대비(contrast)를 0.7로 설정해 신뢰구간이 좀 더 잘 보이도록 그려주었습니다.
 
-Figure4를 통해 가져갈 수 있는 해석은, 저기온이 고기온에 비해 좀 더 오래 사망자 수에 위험을 끼치지만 즉각적으로 사망자 수에 위험을 끼치는 것이 아니며, 지연효과가 없는 `lag = 0`에서는 오히려 보호적 효과를 보여준다는 점이다. DLNMs은 이처럼 예측변수의 공간에서도 비선형성을 허용함으로써, DLMs와 같은 상대적으로 간단한 모형에서는 수행하기 힘든 좀 더 디테일한 분석을 수행할 수 있게 해줍니다.
+Figure4를 통해 가져갈 수 있는 해석은, 저기온이 고기온에 비해 좀 더 오래 사망자 수에 위험을 끼치지만 즉각적으로 사망자 수에 위험을 끼치는 것이 아니며, 지연효과가 없는 `lag = 0`에서는 오히려 보호적 효과를 보여준다는 점입니다. DLNMs은 이처럼 예측변수의 공간에서도 비선형성을 허용함으로써, DLMs와 같은 상대적으로 간단한 모형에서는 수행하기 힘든 디테일한 분석을 수행할 수 있게 해줍니다.
 
 ### 3.4 Example 4: reducing a DLNM
-마지막 예제에서는 이차원의 DLNM을 `crossreduce()`를 이용하여 1차원 기저의 모수들로 축소시키는(reduce) 방법에 대해 소개하고 글을 마무리하려고 합니다. 먼저 새로운 교차 기저 행렬을 정의한 뒤에, 적합 및 예측을 이전과 똑같이 진행해줍니다:
+마지막 예제에서는 이차원의 DLNM을 `crossreduce()`를 이용하여 1차원 기저의 모수들로 축소시키는(reduce) 방법에 대해 소개하고 글을 마무리하려고 합니다. 먼저 새로운 교차 기저 행렬을 정의한 뒤에, 적합과 예측을 이전과 똑같이 진행해줍니다:
 ```{r}
 cb4 <- crossbasis(chicagoNMMAPS %>% pull(temp), lag = 30,
                   argvar = list(fun = "thr", thr = c(10, 25)),
@@ -227,20 +223,20 @@ mod_dlnm2 <- glm(death ~ cb4 + ns(time, 7*14) + dow,
 pred4 <- crosspred(cb4, mod_dlnm2, by = 1)
 ```
 
-DLNM의 축소는 3가지 specific으로 요약됩니다:
+DLNM의 축소는 3가지로 요약됩니다:
 
 i) Overall cumulative(전반적인 누적 지연 효과)
 ii) lag-specific
 iii) predictor-specific
 
-즉, i)과 ii)로의 축소는 exposure-response 곡선으로, iii)으로의 축소는 lag-response 곡선으로 시각화될 것입니다. 축소를 수행하는 코드는 다음과 같습니다. ii)과 iii)의 specific associations에 관한 축소는 시차 5, 기온 33도 각각의 공간에서 수행했습니다.
+즉, i)과 ii)로의 축소는 exposure-response 곡선으로, iii)으로의 축소는 lag-response 곡선으로 시각화될 것입니다. 축소를 수행하는 코드는 다음과 같습니다. ii)과 iii)의 specific에 관한 특정 값으로의 축소는, 시차 5, 기온 33도로 하여 각각의 공간에 대해 축소를 진행하였습니다:
 ```{r}
 red_all <- crossreduce(cb4, mod_dlnm2)
 red_lag <- crossreduce(cb4, mod_dlnm2, type = "lag", value = 5)
 red_var <- crossreduce(cb4, mod_dlnm2, type = "var", value = 33)
 ```
 
-`crossreduce()`에 의해 생성되는 객체들은 crossreduce 객체에 해당하며, 위 세 객체는 모두 축소된 공간에 관한 1차원 기저의 수정된 축소 모수(modifited reduced parameters)를 포함하고 있습니다.
+`crossreduce()`에 의해 생성되는 객체들은 crossreduce 객체에 해당하며, 위 세 객체는 모두 축소된 공간에 관한 1차원 기저의 수정된 축소 모수(modified reduced parameters)를 포함하고 있습니다.
 
 ```{r}
 dim_bi <- length(coef(pred4))
@@ -254,7 +250,7 @@ cat("The number of parameters of the bi-dimensional model: ", dim_bi, "\n",
     sep = "")
 ```
 
-i)과 ii)로의 축소는 곧 예측변수 공간으로의 축소를 의미하며, 사전에 `list(fun = "thr", thr = c(10, 25))`을 통한 double-threshold parameterazation을 수행했었으므로, 모수의 수는 2개가 된다. iii)로의 축소는 곧 시차 공간으로의 축소를 의미하며, 사전에 `list(knots = lagknots)`를 통해 knots이 3개인 natural cubic splines(default option, see `?logknots`)으로 추정을 수행하였으므로, 해당 모형의 자유도인 5가 곧 시차 공간의 모수의 수가 된다. reduced DLNMs은 결국 DLNMs의 공간을 축소시킨 것에 불과하기 때문에, 결국 축소 전의 DLNMs과 같은 예측값을 생성한다:
+i)과 ii)로의 축소는 곧 예측변수 공간으로의 축소를 의미하며 사전에 `list(fun = "thr", thr = c(10, 25))`을 통한 double-threshold parameterazation을 수행했었으므로, 모수의 수는 2개가 됩니다. iii)로의 축소는 곧 시차 공간으로의 축소를 의미하며, 사전에 `list(knots = lagknots)`를 통해 knots이 3개인 natural cubic splines(default option, see `?logknots`)으로 추정을 수행하였으므로 해당 모형의 자유도인 5가 곧 시차 공간의 모수의 수가 됩니다. reduced DLNMs은 결국 DLNMs의 공간을 축소시킨 것에 불과하기 때문에, 결국 축소 전의 DLNMs과 같은 예측값을 생성하게 됩니다. 축소 시킨 경우와 축소 이전의 crosspred 객체 `pred4`를 이용해 그림을 겹쳐 그려보면 정확하게 일치함을 확인할 수 있습니다:
 ```{r reduced1, warning = FALSE, out.width = "80%", fig.align = "center", fig.cap = "Figure 5"}
 plot(pred4, "overall", xlab = "Temperature", ylab = "RR", col = 2,
      ylim = c(0.8, 1.6), main = "Overall cumulative association")
@@ -262,13 +258,13 @@ lines(red_all, ci = "lines", col = 4, lty = 2)
 legend("top", c("Original", "Reduced"), col = c(2, 4), lty = 1:2, ins = 0.1)
 ```
 
-이러한 과정은 또 다른 방법으로, 1차원 기저를 다시 정의하고 수정된 모수로 예측을 수행함으로써 명확하게 제시할 수 있다. 예를 들어, `onebasis()`를 통해 시차 공간에 관한 natural cubic spline을 다음과 같이 재현하고, 결과를 예측할 수 있다:
+이러한 과정은 또 다른 방법으로, 1차원 기저를 다시 정의하고 수정된 모수로 예측을 수행함으로써 명확하게 제시할 수 있습니다. 예를 들어, `onebasis()`를 통해 시차 공간에 관한 natural cubic spline을 다음과 같이 재현하고, 결과를 예측할 수 있습니다:
 ```{r}
 b4 <- onebasis(0:30, knots = attributes(cb4)$arglag$knots, intercept = TRUE)
 pred4b <- crosspred(b4, coef = coef(red_var), vcov = vcov(red_var), model.link = "log", by = 1)
 ```
 
-똑같은 결과를 재현하기 위해 spline 기저가 시차 `0:30`에 해당하는 정수값에 대해 계산되었으며, knots은 본래의 교차 기저와 똑같은 곳에 놓았다. 그리고, `red_var`의 수정된 모수를 이용하여 기온 33도에 대한 예측을 수행하였다. 이는 Figure 5의 Original, Reduced DLNMs와 정확하게 동일한 예측 결과를 보여준다:
+똑같은 결과를 재현하기 위해 spline 기저가 시차 `0:30`에 해당하는 정수값에 대해 계산되었으며, knots은 본래의 교차 기저와 똑같은 곳에 놓았습니다. 그리고, `red_var`의 수정된 모수를 이용하여 기온 33도에 대한 예측을 수행하였습니다. 이는 정확하게 동일한 예측 결과를 보여준다:
 ```{r reduced2, warning = FALSE, out.width = "80%", fig.align = "center", fig.cap = "Figure 6"}
 plot(pred4, "slices", var = 33, ylab = "RR", ylim = c(0.9, 1.2), col = 2,
      main = "Predictor-specific association at 33C")
